@@ -45,98 +45,62 @@ body {
   border-radius: 3px;
   box-shadow: 0 4px 32px rgba(0,0,0,0.9);
 }
-.page.p15 img {
-  width: min(92vw, 672px);
-}
+.page.p15 img { width: min(92vw, 672px); }
 
-@keyframes fadeOut {
-  0%   { opacity: 1;   transform: scale(1); }
-  100% { opacity: 0;   transform: scale(1.04); }
-}
-@keyframes fadeIn {
-  0%   { opacity: 0;   transform: scale(0.96); }
-  100% { opacity: 1;   transform: scale(1); }
-}
-@keyframes fadeOutBack {
-  0%   { opacity: 1;   transform: scale(1); }
-  100% { opacity: 0;   transform: scale(0.96); }
-}
-@keyframes fadeInBack {
-  0%   { opacity: 0;   transform: scale(1.04); }
-  100% { opacity: 1;   transform: scale(1); }
-}
+@keyframes fadeOut     { to { opacity:0; transform:scale(1.04); } }
+@keyframes fadeIn      { from { opacity:0; transform:scale(0.96); } }
+@keyframes fadeOutBack { to { opacity:0; transform:scale(0.96); } }
+@keyframes fadeInBack  { from { opacity:0; transform:scale(1.04); } }
 
-.fade-out      { animation: fadeOut     0.28s ease-in  forwards; z-index: 2; }
-.fade-in       { animation: fadeIn      0.32s ease-out forwards; animation-delay: 0.2s; opacity: 0; z-index: 3; }
-.fade-out-back { animation: fadeOutBack 0.28s ease-in  forwards; z-index: 2; }
-.fade-in-back  { animation: fadeInBack  0.32s ease-out forwards; animation-delay: 0.2s; opacity: 0; z-index: 3; }
+.fade-out      { animation: fadeOut     0.28s ease-in  forwards; z-index:2; }
+.fade-in       { animation: fadeIn      0.28s ease-out forwards; z-index:3; }
+.fade-out-back { animation: fadeOutBack 0.28s ease-in  forwards; z-index:2; }
+.fade-in-back  { animation: fadeInBack  0.28s ease-out forwards; z-index:3; }
 
-.controls {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
+.controls { display:flex; align-items:center; gap:20px; }
 button {
-  background: none;
-  border: 1.5px solid #555;
-  color: #ccc;
-  font-size: 0.88rem;
-  padding: 8px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-  white-space: nowrap;
+  background:none; border:1.5px solid #555; color:#ccc;
+  font-size:0.88rem; padding:8px 20px; border-radius:4px;
+  cursor:pointer; transition:border-color .15s,color .15s; white-space:nowrap;
 }
-button:hover:not(:disabled) { border-color: #aaa; color: #fff; }
-button:disabled { opacity: 0.2; cursor: default; }
-.counter { color: #666; font-size: 0.85rem; min-width: 52px; text-align: center; }
+button:hover:not(:disabled) { border-color:#aaa; color:#fff; }
+button:disabled { opacity:0.2; cursor:default; }
+.counter { color:#666; font-size:0.85rem; min-width:52px; text-align:center; }
 
-.dots {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 16px;
-}
+.dots { display:flex; align-items:center; gap:6px; padding:0 16px; }
 .dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: #333;
-  border: 1px solid #555;
-  cursor: pointer;
-  transition: background 0.15s;
+  width:7px; height:7px; border-radius:50%;
+  background:#333; border:1px solid #555;
+  cursor:pointer; transition:background .15s;
 }
-.dot.active { background: #fff; border-color: #fff; }
+.dot.active { background:#fff; border-color:#fff; }
 </style>
 </head>
 <body>
 
 <div class="book" id="book"></div>
-
 <div class="controls">
   <button id="btnPrev" onclick="go(-1)" disabled>&#9664; Anterior</button>
   <span class="counter" id="counter">1 / 15</span>
   <button id="btnNext" onclick="go(1)">Próxima &#9654;</button>
 </div>
-
 <div class="dots" id="dots"></div>
 
 <script>
 const TOTAL = 15;
-const BASE_URL = 'https://raw.githubusercontent.com/aserthh/serhshdf/main/';
+const BASE = 'https://raw.githubusercontent.com/aserthh/serhshdf/main/';
 
-// Cache de blob URLs — imagem só entra aqui quando está 100% baixada
-const cache = new Array(TOTAL).fill(null);
+// Cache de objetos Image() pré-carregados
+const cache = {};
 
 function preload(i) {
-  if (i < 0 || i >= TOTAL || cache[i] !== null) return;
-  cache[i] = 'loading';
-  fetch(BASE_URL + (i + 1) + '.png')
-    .then(r => r.blob())
-    .then(blob => { cache[i] = URL.createObjectURL(blob); })
-    .catch(() => { cache[i] = BASE_URL + (i + 1) + '.png'; }); // fallback
+  if (i < 0 || i >= TOTAL || cache[i]) return;
+  const img = new Image();
+  img.src = BASE + (i + 1) + '.png';
+  cache[i] = img; // guarda mesmo antes de carregar
 }
 
-// Pré-carrega as 4 primeiras ao abrir
+// Começa a baixar as primeiras 4 imediatamente
 preload(0); preload(1); preload(2); preload(3);
 
 let current = 0;
@@ -159,15 +123,34 @@ function makePage(i) {
   const wrap = document.createElement('div');
   wrap.className = 'page' + (i === 14 ? ' p15' : '');
   const img = document.createElement('img');
-  // cache[i] é um blob URL ou a URL direta (fallback)
-  img.src = (cache[i] && cache[i] !== 'loading') ? cache[i] : BASE_URL + (i + 1) + '.png';
+  // Reutiliza o src do cache — já está sendo baixado pelo browser
+  img.src = BASE + (i + 1) + '.png';
   img.alt = `Página ${i + 1}`;
   img.draggable = false;
   wrap.appendChild(img);
   return wrap;
 }
 
-book.appendChild(makePage(0));
+// Espera imagem estar pronta e chama callback
+function whenReady(i, cb) {
+  const cached = cache[i];
+  if (cached && cached.complete && cached.naturalWidth > 0) {
+    cb(); // já carregada
+  } else if (cached) {
+    cached.onload  = cb;
+    cached.onerror = cb; // se falhar, mostra assim mesmo
+  } else {
+    preload(i);
+    cache[i].onload  = cb;
+    cache[i].onerror = cb;
+  }
+}
+
+// Mostra página 0 assim que carregar
+whenReady(0, () => {
+  book.appendChild(makePage(0));
+  updateUI();
+});
 
 function updateUI() {
   counter.textContent = `${current + 1} / ${TOTAL}`;
@@ -175,7 +158,6 @@ function updateUI() {
   btnNext.disabled = current === TOTAL - 1;
   document.querySelectorAll('.dot').forEach((d, i) =>
     d.classList.toggle('active', i === current));
-  // Pré-carrega as próximas 3
   preload(current + 1);
   preload(current + 2);
   preload(current + 3);
@@ -185,51 +167,44 @@ function updateUI() {
 function go(dir) {
   const next = current + dir;
   if (busy || next < 0 || next >= TOTAL) return;
-
-  // Se ainda não carregou, espera antes de trocar
-  if (cache[next] === 'loading' || cache[next] === null) {
-    preload(next);
-    btnPrev.disabled = true;
-    btnNext.disabled = true;
-    const wait = setInterval(() => {
-      if (cache[next] && cache[next] !== 'loading') {
-        clearInterval(wait);
-        updateUI();
-        go(dir);
-      }
-    }, 80);
-    return;
-  }
-
   busy = true;
 
-  const outPage = book.querySelector('.page');
-  const inPage  = makePage(next);
-  book.appendChild(inPage);
+  preload(next);
 
-  if (dir > 0) {
-    outPage.classList.add('fade-out');
-    inPage.classList.add('fade-in');
-  } else {
-    outPage.classList.add('fade-out-back');
-    inPage.classList.add('fade-in-back');
-  }
+  whenReady(next, () => {
+    const outPage = book.querySelector('.page');
+    const inPage  = makePage(next);
+    book.appendChild(inPage);
 
-  setTimeout(() => {
-    outPage.remove();
-    inPage.classList.remove('fade-in', 'fade-in-back');
-    current = next;
-    busy = false;
-    updateUI();
-  }, 560);
+    if (dir > 0) {
+      outPage.classList.add('fade-out');
+      inPage.classList.add('fade-in');
+    } else {
+      outPage.classList.add('fade-out-back');
+      inPage.classList.add('fade-in-back');
+    }
+
+    setTimeout(() => {
+      outPage.remove();
+      inPage.classList.remove('fade-in', 'fade-in-back');
+      current = next;
+      busy = false;
+      updateUI();
+    }, 300);
+  });
 }
 
 function jumpTo(i) {
   if (busy || i === current) return;
-  book.querySelectorAll('.page').forEach(p => p.remove());
-  book.appendChild(makePage(i));
-  current = i;
-  updateUI();
+  busy = true;
+  preload(i);
+  whenReady(i, () => {
+    book.querySelectorAll('.page').forEach(p => p.remove());
+    book.appendChild(makePage(i));
+    current = i;
+    busy = false;
+    updateUI();
+  });
 }
 
 document.addEventListener('keydown', e => {
@@ -238,15 +213,13 @@ document.addEventListener('keydown', e => {
 });
 
 let tx = null;
-book.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive: true});
+book.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive:true});
 book.addEventListener('touchend', e => {
   if (tx === null) return;
   const dx = e.changedTouches[0].clientX - tx;
   if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
   tx = null;
-}, {passive: true});
-
-updateUI();
+}, {passive:true});
 </script>
 </body>
 </html>
