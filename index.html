@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chernobyl — Gibi</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #111;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 1fr 52px 28px;
+  align-items: center;
+  justify-items: center;
+  font-family: sans-serif;
+  overflow: hidden;
+}
+
+.book {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page img {
+  /* fill width first, then respect height — works for both portrait and landscape */
+  width: min(92vw, 560px);
+  height: auto;
+  max-height: calc(100vh - 110px);
+  object-fit: contain;
+  display: block;
+  border-radius: 3px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.9);
+}
+.page.p15 img {
+  width: min(92vw, 672px);
+}
+
+/* ── Fade + slight zoom ── */
+@keyframes fadeOut {
+  0%   { opacity: 1;   transform: scale(1); }
+  100% { opacity: 0;   transform: scale(1.04); }
+}
+@keyframes fadeIn {
+  0%   { opacity: 0;   transform: scale(0.96); }
+  100% { opacity: 1;   transform: scale(1); }
+}
+@keyframes fadeOutBack {
+  0%   { opacity: 1;   transform: scale(1); }
+  100% { opacity: 0;   transform: scale(0.96); }
+}
+@keyframes fadeInBack {
+  0%   { opacity: 0;   transform: scale(1.04); }
+  100% { opacity: 1;   transform: scale(1); }
+}
+
+.fade-out      { animation: fadeOut     0.28s ease-in  forwards; z-index: 2; }
+.fade-in       { animation: fadeIn      0.32s ease-out forwards; animation-delay: 0.2s; opacity: 0; z-index: 3; }
+.fade-out-back { animation: fadeOutBack 0.28s ease-in  forwards; z-index: 2; }
+.fade-in-back  { animation: fadeInBack  0.32s ease-out forwards; animation-delay: 0.2s; opacity: 0; z-index: 3; }
+
+/* ── Controls ── */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+button {
+  background: none;
+  border: 1.5px solid #555;
+  color: #ccc;
+  font-size: 0.88rem;
+  padding: 8px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+button:hover:not(:disabled) { border-color: #aaa; color: #fff; }
+button:disabled { opacity: 0.2; cursor: default; }
+.counter { color: #666; font-size: 0.85rem; min-width: 52px; text-align: center; }
+
+/* ── Dots ── */
+.dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #333;
+  border: 1px solid #555;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dot.active { background: #fff; border-color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="book" id="book"></div>
+
+<div class="controls">
+  <button id="btnPrev" onclick="go(-1)" disabled>&#9664; Anterior</button>
+  <span class="counter" id="counter">1 / 15</span>
+  <button id="btnNext" onclick="go(1)">Próxima &#9654;</button>
+</div>
+
+<div class="dots" id="dots"></div>
+
+<script>
+const TOTAL = 15;
+let current = 0;
+let busy = false;
+
+const book    = document.getElementById('book');
+const counter = document.getElementById('counter');
+const btnPrev = document.getElementById('btnPrev');
+const btnNext = document.getElementById('btnNext');
+const dotsEl  = document.getElementById('dots');
+
+for (let i = 0; i < TOTAL; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.onclick = () => jumpTo(i);
+  dotsEl.appendChild(d);
+}
+
+function makePage(i) {
+  const wrap = document.createElement('div');
+  wrap.className = 'page' + (i === 14 ? ' p15' : '');
+  const img = document.createElement('img');
+  img.src = `${i + 1}.png`;
+  img.alt = `Página ${i + 1}`;
+  img.draggable = false;
+  wrap.appendChild(img);
+  return wrap;
+}
+
+book.appendChild(makePage(0));
+
+function updateUI() {
+  counter.textContent = `${current + 1} / ${TOTAL}`;
+  btnPrev.disabled = current === 0;
+  btnNext.disabled = current === TOTAL - 1;
+  document.querySelectorAll('.dot').forEach((d, i) =>
+    d.classList.toggle('active', i === current));
+}
+
+function go(dir) {
+  const next = current + dir;
+  if (busy || next < 0 || next >= TOTAL) return;
+  busy = true;
+
+  const outPage = book.querySelector('.page');
+  const inPage  = makePage(next);
+  book.appendChild(inPage);
+
+  if (dir > 0) {
+    outPage.classList.add('fade-out');
+    inPage.classList.add('fade-in');
+  } else {
+    outPage.classList.add('fade-out-back');
+    inPage.classList.add('fade-in-back');
+  }
+
+  setTimeout(() => {
+    outPage.remove();
+    inPage.classList.remove('fade-in', 'fade-in-back');
+    current = next;
+    busy = false;
+    updateUI();
+  }, 560);
+}
+
+function jumpTo(i) {
+  if (busy || i === current) return;
+  book.querySelectorAll('.page').forEach(p => p.remove());
+  book.appendChild(makePage(i));
+  current = i;
+  updateUI();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+});
+
+let tx = null;
+book.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive: true});
+book.addEventListener('touchend', e => {
+  if (tx === null) return;
+  const dx = e.changedTouches[0].clientX - tx;
+  if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+  tx = null;
+}, {passive: true});
+
+updateUI();
+</script>
+</body>
+</html>
