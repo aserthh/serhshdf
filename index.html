@@ -49,27 +49,64 @@ body {
   width: min(92vw, 672px);
 }
 
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #111;
+  z-index: 10;
+  transition: opacity 0.3s ease;
+}
+.loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.loading-label {
+  color: #555;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+}
+.progress-bar-wrap {
+  width: 160px;
+  height: 2px;
+  background: #222;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background: #666;
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
 @keyframes fadeOut {
-  0%   { opacity: 1;   transform: scale(1); }
-  100% { opacity: 0;   transform: scale(1.04); }
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.04); }
 }
 @keyframes fadeIn {
-  0%   { opacity: 0;   transform: scale(0.96); }
-  100% { opacity: 1;   transform: scale(1); }
+  0%   { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
 }
 @keyframes fadeOutBack {
-  0%   { opacity: 1;   transform: scale(1); }
-  100% { opacity: 0;   transform: scale(0.96); }
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.96); }
 }
 @keyframes fadeInBack {
-  0%   { opacity: 0;   transform: scale(1.04); }
-  100% { opacity: 1;   transform: scale(1); }
+  0%   { opacity: 0; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 .fade-out      { animation: fadeOut     0.28s ease-in  forwards; z-index: 2; }
-.fade-in       { animation: fadeIn      0.32s ease-out forwards; animation-delay: 0.2s; opacity: 0; z-index: 3; }
+.fade-in       { animation: fadeIn      0.32s ease-out forwards; animation-delay: 0.1s; opacity: 0; z-index: 3; }
 .fade-out-back { animation: fadeOutBack 0.28s ease-in  forwards; z-index: 2; }
-.fade-in-back  { animation: fadeInBack  0.32s ease-out forwards; animation-delay: 0.2s; opacity: 0; z-index: 3; }
+.fade-in-back  { animation: fadeInBack  0.32s ease-out forwards; animation-delay: 0.1s; opacity: 0; z-index: 3; }
 
 .controls {
   display: flex;
@@ -106,16 +143,24 @@ button:disabled { opacity: 0.2; cursor: default; }
   transition: background 0.15s;
 }
 .dot.active { background: #fff; border-color: #fff; }
+.dot.ready  { border-color: #555; background: #444; }
 </style>
 </head>
 <body>
 
-<div class="book" id="book"></div>
+<div class="book" id="book">
+  <div class="loading-overlay" id="globalOverlay">
+    <div class="loading-label" id="globalLabel">carregando…</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="globalBar"></div>
+    </div>
+  </div>
+</div>
 
 <div class="controls">
   <button id="btnPrev" onclick="go(-1)" disabled>&#9664; Anterior</button>
   <span class="counter" id="counter">1 / 15</span>
-  <button id="btnNext" onclick="go(1)">Próxima &#9654;</button>
+  <button id="btnNext" onclick="go(1)" disabled>Próxima &#9654;</button>
 </div>
 
 <div class="dots" id="dots"></div>
@@ -123,35 +168,191 @@ button:disabled { opacity: 0.2; cursor: default; }
 <script>
 const TOTAL = 15;
 const BASE_URL = 'https://raw.githubusercontent.com/aserthh/serhshdf/main/';
+// Quantas páginas carregar à frente em paralelo
+const AHEAD = 4;
+
+// Cache: { img, loaded, blob }
+const cache = {};
+
+const book        = document.getElementById('book');
+const counter     = document.getElementById('counter');
+const btnPrev     = document.getElementById('btnPrev');
+const btnNext     = document.getElementById('btnNext');
+const dotsEl      = document.getElementById('dots');
+const globalOverlay = document.getElementById('globalOverlay');
+const globalLabel   = document.getElementById('globalLabel');
+const globalBar     = document.getElementById('globalBar');
 
 let current = 0;
 let busy = false;
 
-const book    = document.getElementById('book');
-const counter = document.getElementById('counter');
-const btnPrev = document.getElementById('btnPrev');
-const btnNext = document.getElementById('btnNext');
-const dotsEl  = document.getElementById('dots');
-
+// ── Dots ──
 for (let i = 0; i < TOTAL; i++) {
   const d = document.createElement('div');
   d.className = 'dot' + (i === 0 ? ' active' : '');
   d.onclick = () => jumpTo(i);
   dotsEl.appendChild(d);
 }
+function getDot(i) { return dotsEl.children[i]; }
 
+// ── Fetch via blob para evitar limitação de cache do browser ──
+function fetchPage(i) {
+  if (i < 0 || i >= TOTAL) return;
+  if (cache[i]) return; // já iniciado
+
+  cache[i] = { loaded: false, blobUrl: null, img: null };
+
+  fetch(`${BASE_URL}${i + 1}.png`)
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      cache[i].blobUrl = url;
+      cache[i].loaded = true;
+      getDot(i).classList.add('ready');
+      // Se for a página atual esperando, renderiza
+      if (i === current && !book.querySelector('img')) {
+        renderCurrent();
+      }
+    })
+    .catch(() => {
+      // fallback: tenta via img direto
+      cache[i].loaded = true;
+      cache[i].blobUrl = `${BASE_URL}${i + 1}.png`;
+    });
+}
+
+// Carrega página atual + AHEAD à frente + 1 atrás
+function schedulePreload(from) {
+  fetchPage(from);
+  for (let k = 1; k <= AHEAD; k++) fetchPage(from + k);
+  fetchPage(from - 1);
+}
+
+// ── Inicia carregando tudo em paralelo mas mostra progresso ──
+let loaded = 0;
+function startBulkPreload() {
+  // Carrega as primeiras 5 em paralelo imediatamente
+  for (let i = 0; i < Math.min(5, TOTAL); i++) fetchPage(i);
+
+  // O resto com pequeno delay escalonado para não travar a conexão
+  for (let i = 5; i < TOTAL; i++) {
+    setTimeout(() => fetchPage(i), (i - 4) * 300);
+  }
+
+  // Atualiza barra de progresso
+  const interval = setInterval(() => {
+    const done = Object.values(cache).filter(c => c.loaded).length;
+    const pct = Math.round((done / TOTAL) * 100);
+    globalBar.style.width = pct + '%';
+    globalLabel.textContent = `carregando… ${done}/${TOTAL}`;
+
+    if (done >= TOTAL) {
+      clearInterval(interval);
+    }
+  }, 200);
+}
+
+// ── Renderiza a página atual ──
 function makePage(i) {
   const wrap = document.createElement('div');
   wrap.className = 'page' + (i === 14 ? ' p15' : '');
   const img = document.createElement('img');
-  img.src = `${BASE_URL}${i + 1}.png`;
+  img.src = cache[i] && cache[i].blobUrl ? cache[i].blobUrl : `${BASE_URL}${i + 1}.png`;
   img.alt = `Página ${i + 1}`;
   img.draggable = false;
   wrap.appendChild(img);
   return wrap;
 }
 
-book.appendChild(makePage(0));
+function renderCurrent() {
+  // Remove overlay global
+  globalOverlay.classList.add('hidden');
+  book.appendChild(makePage(current));
+  updateUI();
+}
+
+// ── Espera a página atual estar pronta antes de mostrar ──
+function waitAndRender(i, dir, outPage) {
+  if (cache[i] && cache[i].loaded) {
+    const inPage = makePage(i);
+    book.appendChild(inPage);
+
+    if (dir > 0) {
+      outPage.classList.add('fade-out');
+      inPage.classList.add('fade-in');
+    } else {
+      outPage.classList.add('fade-out-back');
+      inPage.classList.add('fade-in-back');
+    }
+
+    setTimeout(() => {
+      outPage.remove();
+      inPage.classList.remove('fade-in', 'fade-in-back');
+      current = i;
+      busy = false;
+      updateUI();
+    }, 460);
+  } else {
+    // Ainda não carregou — mostra overlay e aguarda
+    const overlay = document.createElement('div');
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = `
+      <div class="loading-label">carregando página ${i + 1}…</div>
+      <div class="progress-bar-wrap"><div class="progress-bar" style="width:30%;animation:none"></div></div>
+    `;
+    book.appendChild(overlay);
+
+    const poll = setInterval(() => {
+      if (cache[i] && cache[i].loaded) {
+        clearInterval(poll);
+        overlay.remove();
+        waitAndRender(i, dir, outPage);
+      }
+    }, 100);
+  }
+}
+
+function go(dir) {
+  const next = current + dir;
+  if (busy || next < 0 || next >= TOTAL) return;
+  busy = true;
+
+  const outPage = book.querySelector('.page');
+  schedulePreload(next);
+  waitAndRender(next, dir, outPage);
+}
+
+function jumpTo(i) {
+  if (busy || i === current) return;
+  busy = true;
+  book.querySelectorAll('.page').forEach(p => p.remove());
+  schedulePreload(i);
+
+  if (cache[i] && cache[i].loaded) {
+    book.appendChild(makePage(i));
+    current = i;
+    busy = false;
+    updateUI();
+  } else {
+    const overlay = document.createElement('div');
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = `
+      <div class="loading-label">carregando página ${i + 1}…</div>
+      <div class="progress-bar-wrap"><div class="progress-bar" style="width:30%"></div></div>
+    `;
+    book.appendChild(overlay);
+    const poll = setInterval(() => {
+      if (cache[i] && cache[i].loaded) {
+        clearInterval(poll);
+        overlay.remove();
+        book.appendChild(makePage(i));
+        current = i;
+        busy = false;
+        updateUI();
+      }
+    }, 100);
+  }
+}
 
 function updateUI() {
   counter.textContent = `${current + 1} / ${TOTAL}`;
@@ -161,45 +362,25 @@ function updateUI() {
     d.classList.toggle('active', i === current));
 }
 
-function go(dir) {
-  const next = current + dir;
-  if (busy || next < 0 || next >= TOTAL) return;
-  busy = true;
+// ── Inicia ──
+startBulkPreload();
 
-  const outPage = book.querySelector('.page');
-  const inPage  = makePage(next);
-  book.appendChild(inPage);
-
-  if (dir > 0) {
-    outPage.classList.add('fade-out');
-    inPage.classList.add('fade-in');
-  } else {
-    outPage.classList.add('fade-out-back');
-    inPage.classList.add('fade-in-back');
+// Espera página 0 estar pronta para mostrar
+const initPoll = setInterval(() => {
+  if (cache[0] && cache[0].loaded) {
+    clearInterval(initPoll);
+    renderCurrent();
+    btnNext.disabled = false;
   }
+}, 100);
 
-  setTimeout(() => {
-    outPage.remove();
-    inPage.classList.remove('fade-in', 'fade-in-back');
-    current = next;
-    busy = false;
-    updateUI();
-  }, 560);
-}
-
-function jumpTo(i) {
-  if (busy || i === current) return;
-  book.querySelectorAll('.page').forEach(p => p.remove());
-  book.appendChild(makePage(i));
-  current = i;
-  updateUI();
-}
-
+// Teclado
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
   if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
 });
 
+// Touch
 let tx = null;
 book.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive: true});
 book.addEventListener('touchend', e => {
@@ -208,8 +389,6 @@ book.addEventListener('touchend', e => {
   if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
   tx = null;
 }, {passive: true});
-
-updateUI();
 </script>
 </body>
 </html>
