@@ -37,7 +37,6 @@ body {
 }
 
 .page img {
-  /* fill width first, then respect height — works for both portrait and landscape */
   width: min(92vw, 560px);
   height: auto;
   max-height: calc(100vh - 110px);
@@ -50,7 +49,6 @@ body {
   width: min(92vw, 672px);
 }
 
-/* ── Fade + slight zoom ── */
 @keyframes fadeOut {
   0%   { opacity: 1;   transform: scale(1); }
   100% { opacity: 0;   transform: scale(1.04); }
@@ -73,7 +71,6 @@ body {
 .fade-out-back { animation: fadeOutBack 0.28s ease-in  forwards; z-index: 2; }
 .fade-in-back  { animation: fadeInBack  0.32s ease-out forwards; animation-delay: 0.2s; opacity: 0; z-index: 3; }
 
-/* ── Controls ── */
 .controls {
   display: flex;
   align-items: center;
@@ -94,7 +91,6 @@ button:hover:not(:disabled) { border-color: #aaa; color: #fff; }
 button:disabled { opacity: 0.2; cursor: default; }
 .counter { color: #666; font-size: 0.85rem; min-width: 52px; text-align: center; }
 
-/* ── Dots ── */
 .dots {
   display: flex;
   align-items: center;
@@ -126,6 +122,8 @@ button:disabled { opacity: 0.2; cursor: default; }
 
 <script>
 const TOTAL = 15;
+const BASE_URL = 'https://raw.githubusercontent.com/aserthh/serhshdf/main/';
+
 let current = 0;
 let busy = false;
 
@@ -146,7 +144,7 @@ function makePage(i) {
   const wrap = document.createElement('div');
   wrap.className = 'page' + (i === 14 ? ' p15' : '');
   const img = document.createElement('img');
-  img.src = `${i + 1}.png`;
+  img.src = `${BASE_URL}${i + 1}.png`;
   img.alt = `Página ${i + 1}`;
   img.draggable = false;
   wrap.appendChild(img);
