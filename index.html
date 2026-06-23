@@ -174,10 +174,10 @@ function whenReady(i, cb) {
   if (!cache[i]) preload(i);
   const img = cache[i];
   if (img.complete && img.naturalWidth > 0) {
-    cb();
+    setTimeout(cb, 0); // sempre assíncrono pra evitar race condition
   } else {
-    img.onload  = cb;
-    img.onerror = cb;
+    img.onload  = () => setTimeout(cb, 0);
+    img.onerror = () => setTimeout(cb, 0);
   }
 }
 
