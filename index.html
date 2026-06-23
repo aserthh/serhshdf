@@ -101,7 +101,6 @@ button:disabled { opacity: 0.2; cursor: default; }
 }
 .dot.active { background: #fff; border-color: #fff; }
 
-/* Spinner simples enquanto a primeira imagem baixa */
 .spinner {
   width: 32px; height: 32px;
   border: 2px solid #333;
@@ -139,7 +138,6 @@ function preload(i) {
   cache[i] = img;
 }
 
-// Começa a baixar as primeiras 3 já
 preload(0); preload(1); preload(2);
 
 let current = 0;
@@ -174,14 +172,13 @@ function whenReady(i, cb) {
   if (!cache[i]) preload(i);
   const img = cache[i];
   if (img.complete && img.naturalWidth > 0) {
-    setTimeout(cb, 0); // sempre assíncrono pra evitar race condition
+    setTimeout(cb, 0); 
   } else {
     img.onload  = () => setTimeout(cb, 0);
     img.onerror = () => setTimeout(cb, 0);
   }
 }
 
-// Mostra página 0 só quando carregar
 whenReady(0, () => {
   spinner.remove();
   book.appendChild(makePage(0));
