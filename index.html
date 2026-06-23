@@ -2,30 +2,31 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Chernobyl — Gibi</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   background: #111;
-  height: 100vh;
-  display: grid;
-  grid-template-rows: 1fr 52px 28px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-items: center;
   font-family: sans-serif;
   overflow: hidden;
 }
 
 .book {
+  flex: 1;
   width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
+  min-height: 0;
 }
 
 .page {
@@ -37,15 +38,16 @@ body {
 }
 
 .page img {
-  width: min(92vw, 560px);
+  width: auto;
   height: auto;
-  max-height: calc(100vh - 110px);
+  max-width: min(92vw, 560px);
+  max-height: 100%;
   object-fit: contain;
   display: block;
   border-radius: 3px;
   box-shadow: 0 4px 32px rgba(0,0,0,0.9);
 }
-.page.p15 img { width: min(92vw, 672px); }
+.page.p15 img { max-width: min(92vw, 672px); }
 
 @keyframes fadeOut     { to { opacity:0; transform:scale(1.04); } }
 @keyframes fadeIn      { from { opacity:0; transform:scale(0.96); } }
@@ -57,56 +59,94 @@ body {
 .fade-out-back { animation: fadeOutBack 0.28s ease-in  forwards; z-index:2; }
 .fade-in-back  { animation: fadeInBack  0.28s ease-out forwards; z-index:3; }
 
-.controls { display:flex; align-items:center; gap:20px; }
-button {
-  background:none; border:1.5px solid #555; color:#ccc;
-  font-size:0.88rem; padding:8px 20px; border-radius:4px;
-  cursor:pointer; transition:border-color .15s,color .15s; white-space:nowrap;
+.controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  width: 100%;
+  justify-content: center;
 }
-button:hover:not(:disabled) { border-color:#aaa; color:#fff; }
-button:disabled { opacity:0.2; cursor:default; }
-.counter { color:#666; font-size:0.85rem; min-width:52px; text-align:center; }
 
-.dots { display:flex; align-items:center; gap:6px; padding:0 16px; }
-.dot {
-  width:7px; height:7px; border-radius:50%;
-  background:#333; border:1px solid #555;
-  cursor:pointer; transition:background .15s;
+button {
+  background: none;
+  border: 1.5px solid #555;
+  color: #ccc;
+  font-size: 0.88rem;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.dot.active { background:#fff; border-color:#fff; }
+button:hover:not(:disabled) { border-color: #aaa; color: #fff; }
+button:disabled { opacity: 0.2; cursor: default; }
+.counter { color: #666; font-size: 0.85rem; min-width: 52px; text-align: center; }
+
+.dots {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px 12px;
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #333; border: 1px solid #555;
+  cursor: pointer; transition: background .15s;
+}
+.dot.active { background: #fff; border-color: #fff; }
+
+/* Spinner simples enquanto a primeira imagem baixa */
+.spinner {
+  width: 32px; height: 32px;
+  border: 2px solid #333;
+  border-top-color: #777;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<div class="book" id="book"></div>
+<div class="book" id="book">
+  <div class="spinner" id="spinner"></div>
+</div>
+
 <div class="controls">
   <button id="btnPrev" onclick="go(-1)" disabled>&#9664; Anterior</button>
   <span class="counter" id="counter">1 / 15</span>
-  <button id="btnNext" onclick="go(1)">Próxima &#9654;</button>
+  <button id="btnNext" onclick="go(1)" disabled>Próxima &#9654;</button>
 </div>
+
 <div class="dots" id="dots"></div>
 
 <script>
 const TOTAL = 15;
 const BASE = 'https://raw.githubusercontent.com/aserthh/serhshdf/main/';
 
-// Cache de objetos Image() pré-carregados
 const cache = {};
 
 function preload(i) {
   if (i < 0 || i >= TOTAL || cache[i]) return;
   const img = new Image();
   img.src = BASE + (i + 1) + '.png';
-  cache[i] = img; // guarda mesmo antes de carregar
+  cache[i] = img;
 }
 
-// Começa a baixar as primeiras 4 imediatamente
-preload(0); preload(1); preload(2); preload(3);
+// Começa a baixar as primeiras 3 já
+preload(0); preload(1); preload(2);
 
 let current = 0;
 let busy = false;
 
 const book    = document.getElementById('book');
+const spinner = document.getElementById('spinner');
 const counter = document.getElementById('counter');
 const btnPrev = document.getElementById('btnPrev');
 const btnNext = document.getElementById('btnNext');
@@ -123,7 +163,6 @@ function makePage(i) {
   const wrap = document.createElement('div');
   wrap.className = 'page' + (i === 14 ? ' p15' : '');
   const img = document.createElement('img');
-  // Reutiliza o src do cache — já está sendo baixado pelo browser
   img.src = BASE + (i + 1) + '.png';
   img.alt = `Página ${i + 1}`;
   img.draggable = false;
@@ -131,25 +170,23 @@ function makePage(i) {
   return wrap;
 }
 
-// Espera imagem estar pronta e chama callback
 function whenReady(i, cb) {
-  const cached = cache[i];
-  if (cached && cached.complete && cached.naturalWidth > 0) {
-    cb(); // já carregada
-  } else if (cached) {
-    cached.onload  = cb;
-    cached.onerror = cb; // se falhar, mostra assim mesmo
+  if (!cache[i]) preload(i);
+  const img = cache[i];
+  if (img.complete && img.naturalWidth > 0) {
+    cb();
   } else {
-    preload(i);
-    cache[i].onload  = cb;
-    cache[i].onerror = cb;
+    img.onload  = cb;
+    img.onerror = cb;
   }
 }
 
-// Mostra página 0 assim que carregar
+// Mostra página 0 só quando carregar
 whenReady(0, () => {
+  spinner.remove();
   book.appendChild(makePage(0));
   updateUI();
+  btnNext.disabled = false;
 });
 
 function updateUI() {
@@ -160,7 +197,6 @@ function updateUI() {
     d.classList.toggle('active', i === current));
   preload(current + 1);
   preload(current + 2);
-  preload(current + 3);
   preload(current - 1);
 }
 
@@ -168,8 +204,8 @@ function go(dir) {
   const next = current + dir;
   if (busy || next < 0 || next >= TOTAL) return;
   busy = true;
-
-  preload(next);
+  btnPrev.disabled = true;
+  btnNext.disabled = true;
 
   whenReady(next, () => {
     const outPage = book.querySelector('.page');
@@ -197,7 +233,6 @@ function go(dir) {
 function jumpTo(i) {
   if (busy || i === current) return;
   busy = true;
-  preload(i);
   whenReady(i, () => {
     book.querySelectorAll('.page').forEach(p => p.remove());
     book.appendChild(makePage(i));
