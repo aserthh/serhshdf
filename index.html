@@ -126,17 +126,18 @@ button:disabled { opacity: 0.2; cursor: default; }
 <div class="dots" id="dots"></div>
 
 <script>
-const BASE_CONTENT = 'https://raw.githubusercontent.com/aserthh/serhshdf/main/';
-const COVER     = 'https://raw.githubusercontent.com/aserthh/serhshdf/refs/heads/main/fsdh.png';
-const BACKCOVER = 'https://raw.githubusercontent.com/aserthh/serhshdf/refs/heads/main/asgags.png';
+const BASE_CONTENT = 'https://github.com/aserthh/ideal-umbrella/blob/main/';
+const COVER     = 'https://github.com/aserthh/ideal-umbrella/blob/main/primera.png?raw=true';
+const BACKCOVER = 'https://github.com/aserthh/ideal-umbrella/blob/main/ultima.png?raw=true';
 const CONTENT_PAGES = 15;
-const TOTAL = CONTENT_PAGES + 2; 
+const TOTAL = CONTENT_PAGES + 2;
 
 
 function srcFor(i) {
-  if (i === 0)           return COVER;
+  if (i === 0)          return COVER;
   if (i === TOTAL - 1)  return BACKCOVER;
-  return BASE_CONTENT + i + '.png'; // i=1..15
+  if (i === 8)          return BASE_CONTENT + '8%20(1).png?raw=true';
+  return BASE_CONTENT + i + '.png?raw=true'; // i=1..15
 }
 
 
