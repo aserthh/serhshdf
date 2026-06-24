@@ -130,16 +130,16 @@ const BASE_CONTENT = 'https://raw.githubusercontent.com/aserthh/serhshdf/main/';
 const COVER     = 'https://raw.githubusercontent.com/aserthh/serhshdf/refs/heads/main/fsdh.png';
 const BACKCOVER = 'https://raw.githubusercontent.com/aserthh/serhshdf/refs/heads/main/asgags.png';
 const CONTENT_PAGES = 15;
-const TOTAL = CONTENT_PAGES + 2; // capa + 15 páginas + contracapa
+const TOTAL = CONTENT_PAGES + 2; 
 
-// Índice 0 = capa, 1..15 = páginas, 16 = contracapa
+
 function srcFor(i) {
   if (i === 0)           return COVER;
   if (i === TOTAL - 1)  return BACKCOVER;
   return BASE_CONTENT + i + '.png'; // i=1..15
 }
 
-// Página 15 (índice 15, última de conteúdo) é wide
+
 function isWide(i) { return i === 15; }
 
 const cache = {};
