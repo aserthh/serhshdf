@@ -41,7 +41,7 @@ body {
   width: auto;
   height: auto;
   max-width: min(92vw, 560px);
-  max-height: 100%;
+  max-height: calc(100dvh - 90px);
   object-fit: contain;
   display: block;
   border-radius: 3px;
@@ -132,12 +132,11 @@ const BACKCOVER = 'https://github.com/aserthh/ideal-umbrella/blob/main/ultima.pn
 const CONTENT_PAGES = 15;
 const TOTAL = CONTENT_PAGES + 2;
 
-
 function srcFor(i) {
   if (i === 0)          return COVER;
   if (i === TOTAL - 1)  return BACKCOVER;
   if (i === 8)          return BASE_CONTENT + '8%20(1).png?raw=true';
-  return BASE_CONTENT + i + '.png?raw=true'; // i=1..15
+  return BASE_CONTENT + i + '.png?raw=true';
 }
 
 
