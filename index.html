@@ -47,7 +47,7 @@ body {
   border-radius: 3px;
   box-shadow: 0 4px 32px rgba(0,0,0,0.9);
 }
-.page.p15 img { max-width: min(92vw, 672px); }
+.page.p-wide img { max-width: min(92vw, 672px); }
 
 @keyframes fadeOut     { to { opacity:0; transform:scale(1.04); } }
 @keyframes fadeIn      { from { opacity:0; transform:scale(0.96); } }
@@ -119,22 +119,35 @@ button:disabled { opacity: 0.2; cursor: default; }
 
 <div class="controls">
   <button id="btnPrev" onclick="go(-1)" disabled>&#9664; Anterior</button>
-  <span class="counter" id="counter">1 / 15</span>
+  <span class="counter" id="counter">1 / 17</span>
   <button id="btnNext" onclick="go(1)" disabled>Próxima &#9654;</button>
 </div>
 
 <div class="dots" id="dots"></div>
 
 <script>
-const TOTAL = 15;
-const BASE = 'https://raw.githubusercontent.com/aserthh/serhshdf/main/';
+const BASE_CONTENT = 'https://raw.githubusercontent.com/aserthh/serhshdf/main/';
+const COVER     = 'https://raw.githubusercontent.com/aserthh/serhshdf/refs/heads/main/fsdh.png';
+const BACKCOVER = 'https://raw.githubusercontent.com/aserthh/serhshdf/refs/heads/main/asgags.png';
+const CONTENT_PAGES = 15;
+const TOTAL = CONTENT_PAGES + 2; // capa + 15 páginas + contracapa
+
+// Índice 0 = capa, 1..15 = páginas, 16 = contracapa
+function srcFor(i) {
+  if (i === 0)           return COVER;
+  if (i === TOTAL - 1)  return BACKCOVER;
+  return BASE_CONTENT + i + '.png'; // i=1..15
+}
+
+// Página 15 (índice 15, última de conteúdo) é wide
+function isWide(i) { return i === 15; }
 
 const cache = {};
 
 function preload(i) {
   if (i < 0 || i >= TOTAL || cache[i]) return;
   const img = new Image();
-  img.src = BASE + (i + 1) + '.png';
+  img.src = srcFor(i);
   cache[i] = img;
 }
 
@@ -159,10 +172,10 @@ for (let i = 0; i < TOTAL; i++) {
 
 function makePage(i) {
   const wrap = document.createElement('div');
-  wrap.className = 'page' + (i === 14 ? ' p15' : '');
+  wrap.className = 'page' + (isWide(i) ? ' p-wide' : '');
   const img = document.createElement('img');
-  img.src = BASE + (i + 1) + '.png';
-  img.alt = `Página ${i + 1}`;
+  img.src = srcFor(i);
+  img.alt = i === 0 ? 'Capa' : i === TOTAL - 1 ? 'Contracapa' : `Página ${i}`;
   img.draggable = false;
   wrap.appendChild(img);
   return wrap;
@@ -172,7 +185,7 @@ function whenReady(i, cb) {
   if (!cache[i]) preload(i);
   const img = cache[i];
   if (img.complete && img.naturalWidth > 0) {
-    setTimeout(cb, 0); 
+    setTimeout(cb, 0);
   } else {
     img.onload  = () => setTimeout(cb, 0);
     img.onerror = () => setTimeout(cb, 0);
